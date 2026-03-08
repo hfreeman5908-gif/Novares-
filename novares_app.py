@@ -210,7 +210,7 @@ if st.button("🔄 Statistik zurücksetzen"):
 st.markdown("---")
 st.markdown("### 📲 App teilen")
 
-APP_URL = "http://localhost:8501"  # ← hier eure echte URL eintragen
+APP_URL = "https://novaresapp.streamlit.app"  # ← hier eure echte URL eintragen
 
 st.markdown(f"""
 <div class="qr-box">
