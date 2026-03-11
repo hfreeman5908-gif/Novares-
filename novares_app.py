@@ -221,25 +221,28 @@ if st.session_state.letztes_ergebnis:
 
     # Trennungsanleitung
     if erg.get("komplex") and erg.get("schritte"):
-        schritte_html = ""
+        farbe = k["farbe"]
+        teile = []
         for i, s in enumerate(erg["schritte"]):
-            schritte_html += f"""
-            <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
-                <div style="background:{k['farbe']};color:white;border-radius:50%;
-                            width:24px;height:24px;min-width:24px;display:flex;
-                            align-items:center;justify-content:center;
-                            font-size:0.75rem;font-weight:700;">{i+1}</div>
-                <div style="font-size:0.9rem;color:#333;padding-top:3px;">{s}</div>
-            </div>"""
-        st.markdown(f"""
-        <div style="background:#fffde7;border-left:5px solid #f9a825;
-                    border-radius:12px;padding:16px 20px;margin-top:14px;">
-            <div style="font-size:0.78rem;color:#888;font-weight:600;margin-bottom:10px;">
-                ✂️ TRENNUNGSANLEITUNG
-            </div>
-            {schritte_html}
-        </div>
-        """, unsafe_allow_html=True)
+            teile.append(
+                '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">'
+                '<div style="background:' + farbe + ';color:white;border-radius:50%;'
+                'width:24px;height:24px;min-width:24px;display:flex;'
+                'align-items:center;justify-content:center;'
+                'font-size:0.75rem;font-weight:700;">' + str(i+1) + '</div>'
+                '<div style="font-size:0.9rem;color:#333;padding-top:3px;">' + s + '</div>'
+                '</div>'
+            )
+        schritte_html = "".join(teile)
+        st.markdown(
+            '<div style="background:#fffde7;border-left:5px solid #f9a825;'
+            'border-radius:12px;padding:16px 20px;margin-top:14px;">'
+            '<div style="font-size:0.78rem;color:#888;font-weight:600;margin-bottom:10px;">'
+            '✂️ TRENNUNGSANLEITUNG</div>'
+            + schritte_html +
+            '</div>',
+            unsafe_allow_html=True
+        )
 
     # Recycling-Fakt
     st.markdown(f"""
@@ -311,4 +314,3 @@ with col2:
 st.markdown(f"""
 <p style="text-align:center;font-size:0.78rem;color:#aaa;margin-top:8px;">🔗 {APP_URL}</p>
 """, unsafe_allow_html=True)
-
