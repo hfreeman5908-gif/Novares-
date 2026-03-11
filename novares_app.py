@@ -65,6 +65,30 @@ CO2_PRO_KG   = {"Plastik": 1.5, "Papier": 0.15, "Bio": 0.1, "Restmuell": 0.0, "S
 GEWICHT_KG   = {"Plastik": 0.05, "Papier": 0.1, "Bio": 0.15, "Restmuell": 0.1, "Sonderabfall": 0.05}
 KOSTEN_EUR_KG = 0.44  # Restmuell-Entsorgung EVS Saar
 
+# Vergleichswerte fuer CO2-Kontext (belegte Quellen)
+# Auto: 150g CO2/km (Durchschnitt PKW, co2online.de / UBA)
+# Zug:  36g CO2/km (UBA 2018, Fernverkehr)
+# Netflix: 400g CO2/Stunde (stromee.de)
+CO2_AUTO_PRO_KM   = 150   # Gramm
+CO2_ZUG_PRO_KM    = 36    # Gramm
+CO2_NETFLIX_PRO_H = 400   # Gramm
+
+def co2_vergleich(co2_g):
+    """Gibt einen passenden Alltagsvergleich zurueck"""
+    if co2_g <= 0:
+        return ""
+    auto_m  = round((co2_g / CO2_AUTO_PRO_KM) * 1000, 0)   # Meter Auto
+    zug_m   = round((co2_g / CO2_ZUG_PRO_KM)  * 1000, 0)   # Meter Zug
+    netflix = round((co2_g / CO2_NETFLIX_PRO_H) * 60, 1)    # Minuten Netflix
+
+    if co2_g < 20:
+        return str(int(auto_m)) + "m Autofahrt oder " + str(int(zug_m)) + "m Zugfahrt"
+    elif co2_g < 100:
+        return str(int(auto_m)) + "m Autofahrt oder " + str(netflix) + " Min. Netflix streamen"
+    else:
+        return str(round(auto_m/1000, 2)) + " km Autofahrt oder " + str(netflix) + " Min. Netflix streamen"
+
+
 def berechne_impact(kat):
     co2  = CO2_PRO_KG.get(kat, 0) * GEWICHT_KG.get(kat, 0.1) * 1000
     geld = GEWICHT_KG.get(kat, 0.1) * KOSTEN_EUR_KG * 100 if kat not in ["Restmuell", "Sonderabfall"] else 0.0
@@ -328,12 +352,20 @@ if st.session_state.letztes_ergebnis:
         teile = []
         if co2_g > 0: teile.append("~" + str(co2_g) + "g CO2 gespart")
         if cent  > 0: teile.append("~" + str(cent)  + " Cent Entsorgungskosten vermieden")
+        vergleich = co2_vergleich(co2_g)
+        vergleich_html = ""
+        if vergleich:
+            vergleich_html = (
+                '<div style="font-size:0.85rem;color:#555;margin-top:6px;">'
+                '&#8776; Das entspricht: <b>' + vergleich + '</b></div>'
+            )
         st.markdown(
             '<div style="background:#e8f5e9;border-left:5px solid #2e7d32;border-radius:12px;padding:14px 20px;margin-top:14px;">'
             '<div style="font-size:0.78rem;color:#888;font-weight:600;margin-bottom:6px;">DEIN IMPACT DIESER SCAN</div>'
             '<div style="font-size:0.95rem;color:#2e7d32;font-weight:700;">' + " &nbsp;|&nbsp; ".join(teile) + '</div>'
-            '<div style="font-size:0.72rem;color:#aaa;margin-top:6px;">'
-            'Schaetzung basierend auf Umweltbundesamt, DIW 2021, EVS Saar Entsorgungsgebuehren</div>'
+            + vergleich_html +
+            '<div style="font-size:0.72rem;color:#aaa;margin-top:8px;">'
+            'Quellen: Umweltbundesamt, DIW 2021, co2online.de, EVS Saar</div>'
             '</div>', unsafe_allow_html=True)
 
     # Recycling-Fakt
