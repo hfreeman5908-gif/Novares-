@@ -15,6 +15,57 @@ client = Groq(api_key=GROQ_KEY)
 # ── Seiten-Config ──────────────────────────────────────
 st.set_page_config(page_title="Novares | Smart Recycling", page_icon="♻️", layout="centered")
 
+# ── Session State ──────────────────────────────────────
+if "zaehler" not in st.session_state:
+    st.session_state.zaehler = {k: 0 for k in KATEGORIEN}
+if "letztes_ergebnis" not in st.session_state:
+    st.session_state.letztes_ergebnis = None
+if "modus" not in st.session_state:
+    st.session_state.modus = "foto"
+if "eingeloggt" not in st.session_state:
+    st.session_state.eingeloggt = False
+if "behaelter_id" not in st.session_state:
+    st.session_state.behaelter_id = ""
+if "nutzername" not in st.session_state:
+    st.session_state.nutzername = ""
+
+# ── Fake Login-Daten ───────────────────────────────────
+NUTZER = {
+    "Novares": {"passwort": "admin", "behaelter": ["NOV-001", "NOV-002", "NOV-003"]},
+}
+
+# ── Login Screen ───────────────────────────────────────
+if not st.session_state.eingeloggt:
+    st.markdown("""
+    <div style="max-width:420px;margin:40px auto;">
+        <div style="background:white;border-radius:24px;padding:40px 36px;
+                    box-shadow:0 8px 40px rgba(0,0,0,0.10);text-align:center;">
+            <div style="font-size:3rem;margin-bottom:8px;">♻️</div>
+            <div style="font-size:1.6rem;font-weight:800;color:#1a5c2a;margin-bottom:4px;">NOVARES</div>
+            <div style="font-size:0.85rem;color:#888;margin-bottom:28px;">Smart Recycling System</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    with st.form("login_form"):
+        nutzername = st.text_input("👤 Benutzername", placeholder="z.B. Novares")
+        passwort   = st.text_input("🔒 Passwort", type="password", placeholder="••••••")
+        behaelter  = st.selectbox("🗑️ Behälter-ID (steht am Eimer)",
+                                   ["NOV-001", "NOV-002", "NOV-003"])
+        login_btn  = st.form_submit_button("🚀 Anmelden", use_container_width=True)
+
+        if login_btn:
+            if nutzername in NUTZER and NUTZER[nutzername]["passwort"] == passwort:
+                st.session_state.eingeloggt   = True
+                st.session_state.nutzername   = nutzername
+                st.session_state.behaelter_id = behaelter
+                st.rerun()
+            else:
+                st.error("❌ Benutzername oder Passwort falsch")
+
+    st.stop()  # Rest der App nicht anzeigen solange nicht eingeloggt
+
+
 # ── CSS ────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -226,56 +277,6 @@ def erstelle_qr_png(url):
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
-
-# ── Session State ──────────────────────────────────────
-if "zaehler" not in st.session_state:
-    st.session_state.zaehler = {k: 0 for k in KATEGORIEN}
-if "letztes_ergebnis" not in st.session_state:
-    st.session_state.letztes_ergebnis = None
-if "modus" not in st.session_state:
-    st.session_state.modus = "foto"
-if "eingeloggt" not in st.session_state:
-    st.session_state.eingeloggt = False
-if "behaelter_id" not in st.session_state:
-    st.session_state.behaelter_id = ""
-if "nutzername" not in st.session_state:
-    st.session_state.nutzername = ""
-
-# ── Fake Login-Daten ───────────────────────────────────
-NUTZER = {
-    "Novares": {"passwort": "admin", "behaelter": ["NOV-001", "NOV-002", "NOV-003"]},
-}
-
-# ── Login Screen ───────────────────────────────────────
-if not st.session_state.eingeloggt:
-    st.markdown("""
-    <div style="max-width:420px;margin:40px auto;">
-        <div style="background:white;border-radius:24px;padding:40px 36px;
-                    box-shadow:0 8px 40px rgba(0,0,0,0.10);text-align:center;">
-            <div style="font-size:3rem;margin-bottom:8px;">♻️</div>
-            <div style="font-size:1.6rem;font-weight:800;color:#1a5c2a;margin-bottom:4px;">NOVARES</div>
-            <div style="font-size:0.85rem;color:#888;margin-bottom:28px;">Smart Recycling System</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    with st.form("login_form"):
-        nutzername = st.text_input("👤 Benutzername", placeholder="z.B. Novares")
-        passwort   = st.text_input("🔒 Passwort", type="password", placeholder="••••••")
-        behaelter  = st.selectbox("🗑️ Behälter-ID (steht am Eimer)",
-                                   ["NOV-001", "NOV-002", "NOV-003"])
-        login_btn  = st.form_submit_button("🚀 Anmelden", use_container_width=True)
-
-        if login_btn:
-            if nutzername in NUTZER and NUTZER[nutzername]["passwort"] == passwort:
-                st.session_state.eingeloggt   = True
-                st.session_state.nutzername   = nutzername
-                st.session_state.behaelter_id = behaelter
-                st.rerun()
-            else:
-                st.error("❌ Benutzername oder Passwort falsch")
-
-    st.stop()  # Rest der App nicht anzeigen solange nicht eingeloggt
 
 # ── Modus-Schalter ─────────────────────────────────────
 col_l, col_r = st.columns(2)
