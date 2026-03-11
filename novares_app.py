@@ -115,19 +115,14 @@ def upload_bild(img_bytes):
     return antwort["data"]["url"]
 
 def analysiere_muell(img_url):
-    prompt = """Analysiere das Bild genau. Achte ob das Objekt aus MEHREREN Materialien besteht.
+    prompt = """Analysiere das Bild. Antworte NUR in diesem exakten Format, keine extra Erklaerungen:
 
-Antworte IMMER exakt in diesem Format:
-GEGENSTAND: [kurze Beschreibung auf Deutsch]
-KATEGORIE: [nur eines: Plastik, Papier, Glas, Metall, Bio, Restmüll]
-KOMPLEX: [JA oder NEIN]
-SCHRITTE: [nur wenn KOMPLEX=JA: Trennungsschritte auf Deutsch getrennt durch | sonst: KEINE]
-
-Beispiele fuer KOMPLEX=JA:
-- Joghurtbecher mit Aludeckel: Deckel abziehen (Metall), Becher in Gelbe Tonne
-- Plastikflasche mit Inhalt: erst leeren, Deckel abschrauben
-- Tetrapak: Plastikdeckel trennen
-- Pizzakarton fettig: saubere Teile Papier, fettige Teile Restmuell"""
+GEGENSTAND: [was es ist, kurz auf Deutsch]
+KATEGORIE: [genau eines: Plastik, Papier, Glas, Metall, Bio, Restmuell]
+KOMPLEX: [JA wenn mehrere Materialien oder Trennung noetig, sonst NEIN]
+SCHRITT1: [erster Trennungsschritt auf Deutsch, nur wenn KOMPLEX=JA, sonst leer lassen]
+SCHRITT2: [zweiter Trennungsschritt, falls vorhanden, sonst leer lassen]
+SCHRITT3: [dritter Trennungsschritt, falls vorhanden, sonst leer lassen]"""
 
     r = client.chat.completions.create(
         messages=[{
@@ -138,7 +133,7 @@ Beispiele fuer KOMPLEX=JA:
             ]
         }],
         model="meta-llama/llama-4-scout-17b-16e-instruct",
-        max_completion_tokens=200,
+        max_completion_tokens=250,
     )
     text = r.choices[0].message.content.strip()
     gegenstand, kategorie, komplex, schritte = "Unbekannt", "Restmüll", False, []
@@ -148,14 +143,24 @@ Beispiele fuer KOMPLEX=JA:
             gegenstand = zeile.replace("GEGENSTAND:", "").strip()
         elif zeile.startswith("KATEGORIE:"):
             kat = zeile.replace("KATEGORIE:", "").strip()
+            # Normalisierung: Restmuell -> Restmüll
+            kat = kat.replace("Restmuell", "Restmüll")
             if kat in KATEGORIEN:
                 kategorie = kat
         elif zeile.startswith("KOMPLEX:"):
             komplex = "JA" in zeile.upper()
-        elif zeile.startswith("SCHRITTE:"):
-            raw = zeile.replace("SCHRITTE:", "").strip()
-            if raw and raw.upper() != "KEINE":
-                schritte = [s.strip() for s in raw.split("|") if s.strip()]
+        elif zeile.startswith("SCHRITT1:"):
+            s = zeile.replace("SCHRITT1:", "").strip()
+            if s:
+                schritte.append(s)
+        elif zeile.startswith("SCHRITT2:"):
+            s = zeile.replace("SCHRITT2:", "").strip()
+            if s:
+                schritte.append(s)
+        elif zeile.startswith("SCHRITT3:"):
+            s = zeile.replace("SCHRITT3:", "").strip()
+            if s:
+                schritte.append(s)
     return gegenstand, kategorie, komplex, schritte
 
 def erstelle_qr_png(url):
@@ -306,3 +311,4 @@ with col2:
 st.markdown(f"""
 <p style="text-align:center;font-size:0.78rem;color:#aaa;margin-top:8px;">🔗 {APP_URL}</p>
 """, unsafe_allow_html=True)
+
