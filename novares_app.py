@@ -54,36 +54,49 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── 4 Behälter ─────────────────────────────────────────
+# ── 4 Behälter + Sonderabfall ──────────────────────────
 KATEGORIEN = {
-    "Wertstoffe": {"farbe": "#e65c00", "tonne": "🟡 Behälter 1 — Wertstoffe (Plastik, Metall, Glas)", "bg": "#fff3e0"},
-    "Papier":     {"farbe": "#1565c0", "tonne": "🔵 Behälter 2 — Papier & Karton",                   "bg": "#e3f2fd"},
-    "Bio":        {"farbe": "#6d4c41", "tonne": "🟤 Behälter 3 — Bio & Lebensmittel",                "bg": "#efebe9"},
-    "Restmüll":   {"farbe": "#37474f", "tonne": "⚫ Behälter 4 — Restmüll",                          "bg": "#f5f5f5"},
+    "Plastik":      {"farbe": "#e65c00", "tonne": "🟡 Behälter 1 — Nur Plastik",          "bg": "#fff3e0"},
+    "Papier":       {"farbe": "#1565c0", "tonne": "🔵 Behälter 2 — Nur Papier",            "bg": "#e3f2fd"},
+    "Bio":          {"farbe": "#6d4c41", "tonne": "🟤 Behälter 3 — Nur Kompostierbares",   "bg": "#efebe9"},
+    "Restmüll":     {"farbe": "#37474f", "tonne": "⚫ Behälter 4 — Restmüll",              "bg": "#f5f5f5"},
+    "Sonderabfall": {"farbe": "#b71c1c", "tonne": "🔴 Sonderabfall — Nicht in den Müll!",  "bg": "#ffebee"},
 }
 
-# Fallback-Mapping falls KI altes Format zurückgibt
 MAPPING = {
-    "Plastik":    "Wertstoffe",
-    "Metall":     "Wertstoffe",
-    "Glas":       "Wertstoffe",
-    "Wertstoffe": "Wertstoffe",
-    "Papier":     "Papier",
-    "Karton":     "Papier",
-    "Bio":        "Bio",
-    "Biomüll":    "Bio",
-    "Restmüll":   "Restmüll",
-    "Restmuell":  "Restmüll",
+    "Plastik":      "Plastik",
+    "Papier":       "Papier",
+    "Karton":       "Restmüll",   # Karton mit Beschichtung → Restmüll
+    "Pappe":        "Papier",     # reine Pappe → Papier
+    "Bio":          "Bio",
+    "Biomüll":      "Bio",
+    "Biomuell":     "Bio",
+    "Metall":       "Restmüll",   # Metall/Dosen → Restmüll (kein Gelbe Tonne Behälter)
+    "Glas":         "Restmüll",
+    "Restmüll":     "Restmüll",
+    "Restmuell":    "Restmüll",
+    "Sonderabfall": "Sonderabfall",
 }
+
+SONDERABFALL_BEISPIELE = [
+    "Batterie", "Akku", "Elektronik", "Medikament", "Farbe", "Lösungsmittel",
+    "Chemikalie", "Lampe", "Leuchtstoffröhre", "Spraydose", "Öl", "Thermometer"
+]
 
 # ── Fakten ─────────────────────────────────────────────
 FAKTEN = {
-    "Wertstoffe": [
-        "🔄 Plastik, Metall und Glas gehören alle in den Wertstoff-Behälter.",
-        "⚡ Recyceltes Aluminium spart 95% der Energie gegenüber Neuproduktion.",
-        "♾️ Glas kann unendlich oft recycelt werden ohne Qualitätsverlust.",
+    "Plastik": [
         "🌊 Jedes Jahr landen 8 Millionen Tonnen Plastik im Meer.",
+        "♻️ Aus 25 PET-Flaschen kann ein Fleece-Pullover hergestellt werden.",
         "⏳ Eine Plastikflasche braucht bis zu 450 Jahre um sich zu zersetzen.",
+        "🛢️ Recyceltes Plastik spart bis zu 80% Energie gegenüber Neuproduktion.",
+        "⚠️ Nur reines Plastik gehört hier rein — gemischte Verpackungen in Restmüll.",
+    ],
+    "Sonderabfall": [
+        "🔋 Batterien enthalten Schwermetalle die das Grundwasser vergiften können.",
+        "💊 Medikamente niemals in den Ausguss — sie verschmutzen das Trinkwasser.",
+        "🖥️ Elektroschrott enthält wertvolle Rohstoffe wie Gold und Kupfer.",
+        "🎨 Farben und Lacke sind Sondermüll — zum Wertstoffhof bringen!",
     ],
     "Papier": [
         "🌳 Aus 100 kg Altpapier können 85 kg neues Papier hergestellt werden.",
@@ -116,18 +129,36 @@ def upload_bild(img_bytes):
     return antwort["data"]["url"]
 
 def analysiere_muell(img_url):
-    prompt = """Du bist ein Recycling-Experte. Analysiere das Bild und sortiere den Gegenstand.
+    prompt = """Du bist ein praeziser Recycling-Experte fuer Deutschland. Analysiere das Bild genau.
 
-Es gibt genau 4 Behaelter:
-- Wertstoffe: Plastik, Metall, Glas, Dosen, Flaschen, Verpackungen
-- Papier: Papier, Karton, Zeitungen, Pappe
-- Bio: Essensreste, Obst, Gemuese, Pflanzen
-- Restmuell: alles andere was nicht recycelt werden kann
+STRENGE REGELN fuer die 4 Behaelter + Sonderabfall:
 
-Antworte NUR in diesem Format:
+PLASTIK-Behaelter: NUR reines Plastik (PET-Flaschen, Plastiktueten, Styropor, Kunststoff)
+  NICHT: Dosen, Metall, Verbundverpackungen (Tetrapak), beschichtetes Papier
+
+PAPIER-Behaelter: NUR reines Papier (Zeitungen, Buecher, Briefumschlaege, reine Pappe)
+  NICHT: beschichtetes Papier, Tetrapak, Pizzakarton mit Fett, Papier-Plastik-Verbund
+
+BIO-Behaelter: NUR kompostierbares (Essensreste, Obst, Gemuese, Kaffeesatz, Eierschalen, Pflanzen)
+  NICHT: Fleischknochen, behandeltes Holz, Zigaretten
+
+RESTMUELL: alles andere — Metall, Dosen, Glas, Verbundverpackungen, Windeln, Zigaretten, Styropor mit Beschichtung
+
+SONDERABFALL — NIEMALS in den normalen Muell:
+  Batterien, Akkus, Elektronik, Medikamente, Farben, Lacke, Loesungsmittel,
+  Spraydosen unter Druck, Leuchtstoffroehren, Thermometer, Motoroel
+
+TRENNUNGSHINWEISE wenn noetig:
+  - Tetrapak: weder Plastik noch Papier → Restmuell
+  - Joghurtbecher mit Aludeckel: Deckel ab → beides Restmuell
+  - Pizzakarton fettig: Restmuell
+  - Plastikflasche: leeren, Deckel ab → beide Plastik
+
+Antworte NUR in diesem exakten Format:
 GEGENSTAND: [kurze Beschreibung auf Deutsch]
-MATERIAL: [genaues Material z.B. Plastik, Metall, Glas, Papier, Bio]
-BEHAELTER: [einer von: Wertstoffe, Papier, Bio, Restmuell]
+MATERIAL: [genaues Material]
+BEHAELTER: [eines von: Plastik, Papier, Bio, Restmuell, Sonderabfall]
+WARNUNG: [nur wenn Sonderabfall: kurze Erklaerung warum gefaehrlich, sonst leer]
 KOMPLEX: [JA wenn Trennung noetig, sonst NEIN]
 SCHRITT1: [Trennungsschritt falls KOMPLEX=JA, sonst leer]
 SCHRITT2: [weiterer Schritt falls vorhanden, sonst leer]
@@ -144,6 +175,7 @@ SCHRITT3: [weiterer Schritt falls vorhanden, sonst leer]"""
     text = r.choices[0].message.content.strip()
     gegenstand, material, behaelter, komplex, schritte = "Unbekannt", "", "Restmüll", False, []
 
+    warnung = ""
     for zeile in text.split("\n"):
         zeile = zeile.strip()
         if zeile.startswith("GEGENSTAND:"):
@@ -152,12 +184,12 @@ SCHRITT3: [weiterer Schritt falls vorhanden, sonst leer]"""
             material = zeile.replace("MATERIAL:", "").strip()
         elif zeile.startswith("BEHAELTER:"):
             b = zeile.replace("BEHAELTER:", "").strip()
-            # direkt in KATEGORIEN?
             if b in KATEGORIEN:
                 behaelter = b
             else:
-                # Mapping als Fallback
                 behaelter = MAPPING.get(b, MAPPING.get(b.replace("ü","ue"), "Restmüll"))
+        elif zeile.startswith("WARNUNG:"):
+            warnung = zeile.replace("WARNUNG:", "").strip()
         elif zeile.startswith("KOMPLEX:"):
             komplex = "JA" in zeile.upper()
         elif zeile.startswith("SCHRITT1:"):
@@ -172,7 +204,7 @@ SCHRITT3: [weiterer Schritt falls vorhanden, sonst leer]"""
 
     if material and material.lower() not in gegenstand.lower():
         gegenstand = f"{gegenstand} ({material})"
-    return gegenstand, behaelter, komplex, schritte
+    return gegenstand, behaelter, komplex, schritte, warnung
 
 def erstelle_qr_png(url):
     qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=3)
@@ -219,13 +251,14 @@ if st.session_state.modus == "foto":
                 buf = io.BytesIO()
                 img.save(buf, format="JPEG", quality=50)
                 url = upload_bild(buf.getvalue())
-                gegenstand, behaelter, komplex, schritte = analysiere_muell(url)
+                gegenstand, behaelter, komplex, schritte, warnung = analysiere_muell(url)
                 st.session_state.zaehler[behaelter] += 1
                 st.session_state.letztes_ergebnis = {
                     "gegenstand": gegenstand,
                     "kategorie":  behaelter,
                     "komplex":    komplex,
                     "schritte":   schritte,
+                    "warnung":    warnung,
                     "fakt":       random.choice(FAKTEN[behaelter]),
                 }
             except Exception as e:
@@ -261,6 +294,21 @@ if st.session_state.letztes_ergebnis:
         <div class="badge" style="background:{k['farbe']};">✓ Erkannt</div>
     </div>
     """, unsafe_allow_html=True)
+
+    # Sonderabfall-Warnung
+    if erg.get("warnung") or akt_kat == "Sonderabfall":
+        warn_text = erg.get("warnung") or "Dieser Gegenstand gehört zum Sonderabfall!"
+        st.markdown(
+            '<div style="background:#ffebee;border-left:5px solid #b71c1c;'
+            'border-radius:12px;padding:16px 20px;margin-top:14px;">'
+            '<div style="font-size:0.85rem;font-weight:700;color:#b71c1c;margin-bottom:6px;">'
+            '⚠️ ACHTUNG — SONDERABFALL</div>'
+            '<div style="font-size:0.92rem;color:#333;">' + warn_text + '</div>'
+            '<div style="font-size:0.82rem;color:#888;margin-top:8px;">'
+            '📍 Zum nächsten Wertstoffhof oder Schadstoffmobil bringen!</div>'
+            '</div>',
+            unsafe_allow_html=True
+        )
 
     # Trennungsanleitung
     if erg.get("komplex") and erg.get("schritte"):
