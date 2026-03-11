@@ -69,6 +69,37 @@ FAKTEN = {
     ],
 }
 
+
+# ── Impact-Daten (belegte Quellen) ────────────────────
+# CO2: DIW 2021, Umweltbundesamt, Wien Biotonnen-Studie
+# Kosten: AWB Koeln, Stadtreinigung Hamburg (Restmuell ~0.44 EUR/kg)
+#         Recycling ist fuer den Verbraucher kostenlos (Duales System)
+
+CO2_PRO_KG = {
+    "Plastik":      1.5,    # DIW 2021: konservativ 1.5 kg CO2/kg gespart
+    "Papier":       0.15,   # UBA 2023: ~15% CO2-Einsparung bei Papier
+    "Bio":          0.1,    # Wien: 9.000t CO2 / ~90.000t Bioabfall
+    "Restmuell":    0.0,
+    "Sonderabfall": 0.0,
+}
+
+GEWICHT_KG = {
+    "Plastik":      0.05,   # ~50g Durchschnitt (Flasche 17g, Tuete 10g etc.)
+    "Papier":       0.1,    # ~100g (Zeitung, Karton)
+    "Bio":          0.15,   # ~150g (Apfel, Gemueseabfall)
+    "Restmuell":    0.1,
+    "Sonderabfall": 0.05,
+}
+
+# Restmuell kostet ~0.44 EUR/kg (EVS Saar Verwiegesystem, repraesentativ)
+# Recycling kostet den Verbraucher 0 EUR (finanziert durch Duales System)
+KOSTEN_RESTMUELL_PRO_KG = 0.44
+
+def berechne_impact(kategorie):
+    co2 = CO2_PRO_KG.get(kategorie, 0) * GEWICHT_KG.get(kategorie, 0.1) * 1000  # in Gramm
+    geld = GEWICHT_KG.get(kategorie, 0.1) * KOSTEN_RESTMUELL_PRO_KG if kategorie not in ["Restmuell","Sonderabfall"] else 0.0
+    return round(co2, 1), round(geld * 100, 1)  # CO2 in Gramm, Geld in Cent
+
 # ── Fake Login ─────────────────────────────────────────
 NUTZER = {
     "Novares": {"passwort": "admin", "behaelter": ["NOV-001", "NOV-002", "NOV-003"]},
@@ -294,6 +325,12 @@ if st.session_state.modus == "foto":
                 url = upload_bild(buf.getvalue())
                 gegenstand, behaelter, warnung, komplex, schritte = analysiere_muell(url)
                 st.session_state.zaehler[behaelter] += 1
+                co2_g, cent = berechne_impact(behaelter)
+                if "gesamt_co2" not in st.session_state:
+                    st.session_state.gesamt_co2  = 0.0
+                    st.session_state.gesamt_cent = 0.0
+                st.session_state.gesamt_co2  += co2_g
+                st.session_state.gesamt_cent += cent
                 st.session_state.letztes_ergebnis = {
                     "gegenstand": gegenstand,
                     "kategorie":  behaelter,
@@ -382,6 +419,28 @@ if st.session_state.letztes_ergebnis:
         unsafe_allow_html=True
     )
 
+    # Impact-Box
+    co2_g, cent = berechne_impact(akt_kat)
+    if co2_g > 0 or cent > 0:
+        co2_text  = ("~" + str(co2_g) + "g CO2 gespart") if co2_g > 0 else ""
+        geld_text = ("~" + str(cent) + " Cent Entsorgungskosten vermieden") if cent > 0 else ""
+        beide     = " &nbsp;|&nbsp; ".join(filter(None, [co2_text, geld_text]))
+        st.markdown(
+            '<div style="background:#e8f5e9;border-left:5px solid #2e7d32;'
+            'border-radius:12px;padding:14px 20px;margin-top:14px;">'
+            '<div style="font-size:0.78rem;color:#888;font-weight:600;margin-bottom:6px;">DEIN IMPACT</div>'
+            '<div style="font-size:0.95rem;color:#2e7d32;font-weight:700;">' + beide + '</div>'
+            '<div style="font-size:0.72rem;color:#aaa;margin-top:6px;">'
+            'Schaetzung basierend auf: Umweltbundesamt, DIW 2021, EVS Saar Entsorgungsgebuehren</div>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+
+    # Tages-Impact in Session State akkumulieren
+    if "gesamt_co2" not in st.session_state:
+        st.session_state.gesamt_co2  = 0.0
+        st.session_state.gesamt_cent = 0.0
+
     # Korrektur
     st.markdown("<br>", unsafe_allow_html=True)
     kat_liste = list(KATEGORIEN.keys())
@@ -413,8 +472,10 @@ for i, (kat, anzahl) in enumerate(kat_items):
         )
 
 if st.button("Statistik zuruecksetzen"):
-    st.session_state.zaehler = {k: 0 for k in KATEGORIEN}
+    st.session_state.zaehler      = {k: 0 for k in KATEGORIEN}
     st.session_state.letztes_ergebnis = None
+    st.session_state.gesamt_co2   = 0.0
+    st.session_state.gesamt_cent  = 0.0
     st.rerun()
 
 # ── QR-Code ────────────────────────────────────────────
