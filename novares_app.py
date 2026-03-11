@@ -358,15 +358,16 @@ if st.session_state.letztes_ergebnis:
 # ── Statistik ──────────────────────────────────────────
 st.markdown("---")
 st.markdown("### 📊 Heutige Statistik")
-cols = st.columns(4)
-for i, (kat, anzahl) in enumerate(st.session_state.zaehler.items()):
+kat_items = list(st.session_state.zaehler.items())
+cols = st.columns(len(kat_items))
+for i, (kat, anzahl) in enumerate(kat_items):
     farbe = KATEGORIEN[kat]["farbe"]
     with cols[i]:
         st.markdown(
             '<div style="background:white;border-radius:12px;padding:16px;text-align:center;'
             'border-top:4px solid ' + farbe + ';box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:12px;">'
             '<div style="font-size:1.6rem;font-weight:800;color:' + farbe + ';">' + str(anzahl) + '</div>'
-            '<div style="font-size:0.8rem;color:#777;">' + kat + '</div>'
+            '<div style="font-size:0.75rem;color:#777;">' + kat + '</div>'
             '</div>',
             unsafe_allow_html=True
         )
