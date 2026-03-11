@@ -54,25 +54,26 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Kategorien ─────────────────────────────────────────
-# 4 Behälter im Mülleimer
-# Wertstoffe = Plastik + Metall zusammen (Gelbe Tonne)
+# ── 4 Behälter ─────────────────────────────────────────
 KATEGORIEN = {
-    "Wertstoffe": {"farbe": "#e65c00", "tonne": "🟡 Behälter 1 — Wertstoffe",  "bg": "#fff3e0"},
-    "Papier":     {"farbe": "#1565c0", "tonne": "🔵 Behälter 2 — Papier",      "bg": "#e3f2fd"},
-    "Bio":        {"farbe": "#6d4c41", "tonne": "🟤 Behälter 3 — Bio",         "bg": "#efebe9"},
-    "Restmüll":   {"farbe": "#37474f", "tonne": "⚫ Behälter 4 — Restmüll",    "bg": "#f5f5f5"},
+    "Wertstoffe": {"farbe": "#e65c00", "tonne": "🟡 Behälter 1 — Wertstoffe (Plastik, Metall, Glas)", "bg": "#fff3e0"},
+    "Papier":     {"farbe": "#1565c0", "tonne": "🔵 Behälter 2 — Papier & Karton",                   "bg": "#e3f2fd"},
+    "Bio":        {"farbe": "#6d4c41", "tonne": "🟤 Behälter 3 — Bio & Lebensmittel",                "bg": "#efebe9"},
+    "Restmüll":   {"farbe": "#37474f", "tonne": "⚫ Behälter 4 — Restmüll",                          "bg": "#f5f5f5"},
 }
 
-# Mapping: KI-Ergebnis → Behälter (Glas & Metall → Wertstoffe)
+# Fallback-Mapping falls KI altes Format zurückgibt
 MAPPING = {
-    "Wertstoffe": "Wertstoffe",
     "Plastik":    "Wertstoffe",
     "Metall":     "Wertstoffe",
     "Glas":       "Wertstoffe",
+    "Wertstoffe": "Wertstoffe",
     "Papier":     "Papier",
+    "Karton":     "Papier",
     "Bio":        "Bio",
+    "Biomüll":    "Bio",
     "Restmüll":   "Restmüll",
+    "Restmuell":  "Restmüll",
 }
 
 # ── Fakten ─────────────────────────────────────────────
@@ -82,30 +83,13 @@ FAKTEN = {
         "⚡ Recyceltes Aluminium spart 95% der Energie gegenüber Neuproduktion.",
         "♾️ Glas kann unendlich oft recycelt werden ohne Qualitätsverlust.",
         "🌊 Jedes Jahr landen 8 Millionen Tonnen Plastik im Meer.",
-    ],
-    "Plastik": [
-        "🌊 Jedes Jahr landen 8 Millionen Tonnen Plastik im Meer.",
-        "♻️ Aus 25 PET-Flaschen kann ein Fleece-Pullover hergestellt werden.",
         "⏳ Eine Plastikflasche braucht bis zu 450 Jahre um sich zu zersetzen.",
-        "🛢️ Recyceltes Plastik spart bis zu 80% Energie gegenüber Neuproduktion.",
     ],
     "Papier": [
         "🌳 Aus 100 kg Altpapier können 85 kg neues Papier hergestellt werden.",
         "💧 Recyclingpapier verbraucht 70% weniger Wasser als frisches Papier.",
         "📦 Deutschland recycelt über 80% seines Papiers — Weltspitze!",
         "🌲 Eine Tonne Recyclingpapier rettet ca. 17 Bäume.",
-    ],
-    "Glas": [
-        "♾️ Glas kann unendlich oft recycelt werden ohne Qualitätsverlust.",
-        "⚡ Recyceltes Glas schmilzt bei niedrigeren Temperaturen — spart Energie.",
-        "🏺 Die ältesten Glasobjekte der Welt sind über 3.500 Jahre alt.",
-        "🌡️ Beim Glasrecycling wird 20% weniger CO₂ ausgestoßen.",
-    ],
-    "Metall": [
-        "🔄 Aluminium kann endlos recycelt werden — in nur 60 Tagen Kreislauf.",
-        "⚡ Recyceltes Aluminium spart 95% der Energie gegenüber Neuproduktion.",
-        "🚗 Ein Schrottauto liefert genug Stahl für 13 neue Fahrräder.",
-        "💰 Metall ist das wertvollste Recyclingmaterial überhaupt.",
     ],
     "Bio": [
         "🌱 Aus Biomüll entsteht wertvoller Kompost für die Landwirtschaft.",
@@ -132,58 +116,63 @@ def upload_bild(img_bytes):
     return antwort["data"]["url"]
 
 def analysiere_muell(img_url):
-    prompt = """Analysiere das Bild. Antworte NUR in diesem exakten Format, keine extra Erklaerungen:
+    prompt = """Du bist ein Recycling-Experte. Analysiere das Bild und sortiere den Gegenstand.
 
-GEGENSTAND: [was es ist, kurz auf Deutsch]
-MATERIAL: [das genaue Material: Plastik, Papier, Glas, Metall, Bio oder Restmuell]
-BEHAELTER: [wohin es gehoert — NUR eines dieser 4: Wertstoffe, Papier, Bio, Restmuell]
-  Regel: Plastik + Metall + Glas = Wertstoffe
-  Regel: Papier + Karton = Papier
-  Regel: Essensreste + Pflanzen = Bio
-  Regel: alles andere = Restmuell
-KOMPLEX: [JA wenn Trennung noetig z.B. Deckel ab, Inhalt leeren — sonst NEIN]
-SCHRITT1: [Trennungsschritt 1, nur wenn KOMPLEX=JA, sonst leer lassen]
-SCHRITT2: [Trennungsschritt 2, falls vorhanden, sonst leer lassen]
-SCHRITT3: [Trennungsschritt 3, falls vorhanden, sonst leer lassen]"""
+Es gibt genau 4 Behaelter:
+- Wertstoffe: Plastik, Metall, Glas, Dosen, Flaschen, Verpackungen
+- Papier: Papier, Karton, Zeitungen, Pappe
+- Bio: Essensreste, Obst, Gemuese, Pflanzen
+- Restmuell: alles andere was nicht recycelt werden kann
+
+Antworte NUR in diesem Format:
+GEGENSTAND: [kurze Beschreibung auf Deutsch]
+MATERIAL: [genaues Material z.B. Plastik, Metall, Glas, Papier, Bio]
+BEHAELTER: [einer von: Wertstoffe, Papier, Bio, Restmuell]
+KOMPLEX: [JA wenn Trennung noetig, sonst NEIN]
+SCHRITT1: [Trennungsschritt falls KOMPLEX=JA, sonst leer]
+SCHRITT2: [weiterer Schritt falls vorhanden, sonst leer]
+SCHRITT3: [weiterer Schritt falls vorhanden, sonst leer]"""
 
     r = client.chat.completions.create(
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": img_url}}
-            ]
-        }],
+        messages=[{"role": "user", "content": [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": img_url}}
+        ]}],
         model="meta-llama/llama-4-scout-17b-16e-instruct",
         max_completion_tokens=250,
     )
     text = r.choices[0].message.content.strip()
-    gegenstand, kategorie, komplex, schritte = "Unbekannt", "Restmüll", False, []
+    gegenstand, material, behaelter, komplex, schritte = "Unbekannt", "", "Restmüll", False, []
+
     for zeile in text.split("\n"):
         zeile = zeile.strip()
         if zeile.startswith("GEGENSTAND:"):
             gegenstand = zeile.replace("GEGENSTAND:", "").strip()
-        elif zeile.startswith("KATEGORIE:"):
-            kat = zeile.replace("KATEGORIE:", "").strip()
-            # Normalisierung: Restmuell -> Restmüll
-            kat = kat.replace("Restmuell", "Restmüll")
-            if kat in KATEGORIEN:
-                kategorie = kat
+        elif zeile.startswith("MATERIAL:"):
+            material = zeile.replace("MATERIAL:", "").strip()
+        elif zeile.startswith("BEHAELTER:"):
+            b = zeile.replace("BEHAELTER:", "").strip()
+            # direkt in KATEGORIEN?
+            if b in KATEGORIEN:
+                behaelter = b
+            else:
+                # Mapping als Fallback
+                behaelter = MAPPING.get(b, MAPPING.get(b.replace("ü","ue"), "Restmüll"))
         elif zeile.startswith("KOMPLEX:"):
             komplex = "JA" in zeile.upper()
         elif zeile.startswith("SCHRITT1:"):
             s = zeile.replace("SCHRITT1:", "").strip()
-            if s:
-                schritte.append(s)
+            if s: schritte.append(s)
         elif zeile.startswith("SCHRITT2:"):
             s = zeile.replace("SCHRITT2:", "").strip()
-            if s:
-                schritte.append(s)
+            if s: schritte.append(s)
         elif zeile.startswith("SCHRITT3:"):
             s = zeile.replace("SCHRITT3:", "").strip()
-            if s:
-                schritte.append(s)
-    return gegenstand, kategorie, komplex, schritte
+            if s: schritte.append(s)
+
+    if material and material.lower() not in gegenstand.lower():
+        gegenstand = f"{gegenstand} ({material})"
+    return gegenstand, behaelter, komplex, schritte
 
 def erstelle_qr_png(url):
     qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=3)
@@ -199,11 +188,10 @@ if "zaehler" not in st.session_state:
     st.session_state.zaehler = {k: 0 for k in KATEGORIEN}
 if "letztes_ergebnis" not in st.session_state:
     st.session_state.letztes_ergebnis = None
-
-# ── Modus-Schalter ─────────────────────────────────────
 if "modus" not in st.session_state:
     st.session_state.modus = "foto"
 
+# ── Modus-Schalter ─────────────────────────────────────
 col_l, col_r = st.columns(2)
 with col_l:
     if st.button("📷 Foto-Modus", use_container_width=True,
@@ -230,16 +218,15 @@ if st.session_state.modus == "foto":
                 img.thumbnail((800, 800))
                 buf = io.BytesIO()
                 img.save(buf, format="JPEG", quality=50)
-                img_bytes = buf.getvalue()
-                url = upload_bild(img_bytes)
-                gegenstand, kategorie, komplex, schritte = analysiere_muell(url)
-                st.session_state.zaehler[kategorie] += 1
+                url = upload_bild(buf.getvalue())
+                gegenstand, behaelter, komplex, schritte = analysiere_muell(url)
+                st.session_state.zaehler[behaelter] += 1
                 st.session_state.letztes_ergebnis = {
                     "gegenstand": gegenstand,
-                    "kategorie": kategorie,
-                    "komplex": komplex,
-                    "schritte": schritte,
-                    "fakt": random.choice(FAKTEN[kategorie]),
+                    "kategorie":  behaelter,
+                    "komplex":    komplex,
+                    "schritte":   schritte,
+                    "fakt":       random.choice(FAKTEN[behaelter]),
                 }
             except Exception as e:
                 st.error(f"Fehler: {e}")
@@ -266,7 +253,6 @@ if st.session_state.letztes_ergebnis:
     akt_kat = erg["kategorie"]
     k = KATEGORIEN[akt_kat]
 
-    # Ergebnis-Box
     st.markdown(f"""
     <div class="result-box" style="background:{k['bg']}; border-color:{k['farbe']}33;">
         <div class="obj-name">🔍 Erkannt: <b>{erg['gegenstand']}</b></div>
@@ -290,27 +276,24 @@ if st.session_state.letztes_ergebnis:
                 '<div style="font-size:0.9rem;color:#333;padding-top:3px;">' + s + '</div>'
                 '</div>'
             )
-        schritte_html = "".join(teile)
         st.markdown(
             '<div style="background:#fffde7;border-left:5px solid #f9a825;'
             'border-radius:12px;padding:16px 20px;margin-top:14px;">'
             '<div style="font-size:0.78rem;color:#888;font-weight:600;margin-bottom:10px;">'
             '✂️ TRENNUNGSANLEITUNG</div>'
-            + schritte_html +
-            '</div>',
+            + "".join(teile) + '</div>',
             unsafe_allow_html=True
         )
 
     # Recycling-Fakt
-    st.markdown(f"""
-    <div style="background:{k['bg']};border-left:5px solid {k['farbe']};
-                border-radius:12px;padding:16px 20px;margin-top:14px;">
-        <div style="font-size:0.78rem;color:#888;margin-bottom:4px;font-weight:600;">
-            💡 WUSSTEST DU?
-        </div>
-        <div style="font-size:0.95rem;color:#333;line-height:1.5;">{erg['fakt']}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div style="background:' + k['bg'] + ';border-left:5px solid ' + k['farbe'] + ';'
+        'border-radius:12px;padding:16px 20px;margin-top:14px;">'
+        '<div style="font-size:0.78rem;color:#888;margin-bottom:4px;font-weight:600;">💡 WUSSTEST DU?</div>'
+        '<div style="font-size:0.95rem;color:#333;line-height:1.5;">' + erg['fakt'] + '</div>'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
     # Korrektur
     st.markdown("<br>", unsafe_allow_html=True)
@@ -327,17 +310,18 @@ if st.session_state.letztes_ergebnis:
 # ── Statistik ──────────────────────────────────────────
 st.markdown("---")
 st.markdown("### 📊 Heutige Statistik")
-cols = st.columns(3)
+cols = st.columns(4)
 for i, (kat, anzahl) in enumerate(st.session_state.zaehler.items()):
     farbe = KATEGORIEN[kat]["farbe"]
-    with cols[i % 3]:
-        st.markdown(f"""
-        <div style="background:white;border-radius:12px;padding:16px;text-align:center;
-                    border-top:4px solid {farbe};box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:12px;">
-            <div style="font-size:1.6rem;font-weight:800;color:{farbe};">{anzahl}</div>
-            <div style="font-size:0.8rem;color:#777;">{kat}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    with cols[i]:
+        st.markdown(
+            '<div style="background:white;border-radius:12px;padding:16px;text-align:center;'
+            'border-top:4px solid ' + farbe + ';box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:12px;">'
+            '<div style="font-size:1.6rem;font-weight:800;color:' + farbe + ';">' + str(anzahl) + '</div>'
+            '<div style="font-size:0.8rem;color:#777;">' + kat + '</div>'
+            '</div>',
+            unsafe_allow_html=True
+        )
 
 if st.button("🔄 Statistik zurücksetzen"):
     st.session_state.zaehler = {k: 0 for k in KATEGORIEN}
@@ -353,13 +337,14 @@ try:
 except Exception:
     APP_URL = "http://localhost:8501"
 
-st.markdown("""
-<div style="background:white;border-radius:20px;padding:28px;text-align:center;
-            box-shadow:0 4px 24px rgba(0,0,0,0.08);border:2px solid #e0f2e9;">
-    <div style="font-size:1.1rem;font-weight:700;color:#1a5c2a;margin-bottom:4px;">📱 App direkt öffnen</div>
-    <div style="font-size:0.82rem;color:#888;">Einfach mit dem Handy scannen</div>
-</div>
-""", unsafe_allow_html=True)
+st.markdown(
+    '<div style="background:white;border-radius:20px;padding:28px;text-align:center;'
+    'box-shadow:0 4px 24px rgba(0,0,0,0.08);border:2px solid #e0f2e9;">'
+    '<div style="font-size:1.1rem;font-weight:700;color:#1a5c2a;margin-bottom:4px;">📱 App direkt öffnen</div>'
+    '<div style="font-size:0.82rem;color:#888;">Einfach mit dem Handy scannen</div>'
+    '</div>',
+    unsafe_allow_html=True
+)
 
 qr_png = erstelle_qr_png(APP_URL)
 col1, col2, col3 = st.columns([1, 2, 1])
@@ -368,6 +353,7 @@ with col2:
     st.download_button("⬇️ QR-Code herunterladen", data=qr_png,
                        file_name="novares_qr.png", mime="image/png", use_container_width=True)
 
-st.markdown(f"""
-<p style="text-align:center;font-size:0.78rem;color:#aaa;margin-top:8px;">🔗 {APP_URL}</p>
-""", unsafe_allow_html=True)
+st.markdown(
+    '<p style="text-align:center;font-size:0.78rem;color:#aaa;margin-top:8px;">🔗 ' + APP_URL + '</p>',
+    unsafe_allow_html=True
+)
