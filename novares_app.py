@@ -15,6 +15,70 @@ client = Groq(api_key=GROQ_KEY)
 # ── Seiten-Config ──────────────────────────────────────
 st.set_page_config(page_title="Novares | Smart Recycling", page_icon="♻️", layout="centered")
 
+# ── 4 Behälter + Sonderabfall ──────────────────────────
+KATEGORIEN = {
+    "Plastik":      {"farbe": "#e65c00", "tonne": "🟡 Behälter 1 — Nur Plastik",          "bg": "#fff3e0"},
+    "Papier":       {"farbe": "#1565c0", "tonne": "🔵 Behälter 2 — Nur Papier",            "bg": "#e3f2fd"},
+    "Bio":          {"farbe": "#6d4c41", "tonne": "🟤 Behälter 3 — Nur Kompostierbares",   "bg": "#efebe9"},
+    "Restmüll":     {"farbe": "#37474f", "tonne": "⚫ Behälter 4 — Restmüll",              "bg": "#f5f5f5"},
+    "Sonderabfall": {"farbe": "#b71c1c", "tonne": "🔴 Sonderabfall — Nicht in den Müll!",  "bg": "#ffebee"},
+}
+
+MAPPING = {
+    "Plastik":      "Plastik",
+    "Papier":       "Papier",
+    "Karton":       "Restmüll",   # Karton mit Beschichtung → Restmüll
+    "Pappe":        "Papier",     # reine Pappe → Papier
+    "Bio":          "Bio",
+    "Biomüll":      "Bio",
+    "Biomuell":     "Bio",
+    "Metall":       "Restmüll",   # Metall/Dosen → Restmüll (kein Gelbe Tonne Behälter)
+    "Glas":         "Restmüll",
+    "Restmüll":     "Restmüll",
+    "Restmuell":    "Restmüll",
+    "Sonderabfall": "Sonderabfall",
+}
+
+SONDERABFALL_BEISPIELE = [
+    "Batterie", "Akku", "Elektronik", "Medikament", "Farbe", "Lösungsmittel",
+    "Chemikalie", "Lampe", "Leuchtstoffröhre", "Spraydose", "Öl", "Thermometer"
+]
+
+# ── Fakten ─────────────────────────────────────────────
+FAKTEN = {
+    "Plastik": [
+        "🌊 Jedes Jahr landen 8 Millionen Tonnen Plastik im Meer.",
+        "♻️ Aus 25 PET-Flaschen kann ein Fleece-Pullover hergestellt werden.",
+        "⏳ Eine Plastikflasche braucht bis zu 450 Jahre um sich zu zersetzen.",
+        "🛢️ Recyceltes Plastik spart bis zu 80% Energie gegenüber Neuproduktion.",
+        "⚠️ Nur reines Plastik gehört hier rein — gemischte Verpackungen in Restmüll.",
+    ],
+    "Sonderabfall": [
+        "🔋 Batterien enthalten Schwermetalle die das Grundwasser vergiften können.",
+        "💊 Medikamente niemals in den Ausguss — sie verschmutzen das Trinkwasser.",
+        "🖥️ Elektroschrott enthält wertvolle Rohstoffe wie Gold und Kupfer.",
+        "🎨 Farben und Lacke sind Sondermüll — zum Wertstoffhof bringen!",
+    ],
+    "Papier": [
+        "🌳 Aus 100 kg Altpapier können 85 kg neues Papier hergestellt werden.",
+        "💧 Recyclingpapier verbraucht 70% weniger Wasser als frisches Papier.",
+        "📦 Deutschland recycelt über 80% seines Papiers — Weltspitze!",
+        "🌲 Eine Tonne Recyclingpapier rettet ca. 17 Bäume.",
+    ],
+    "Bio": [
+        "🌱 Aus Biomüll entsteht wertvoller Kompost für die Landwirtschaft.",
+        "⚡ Biogas aus organischen Abfällen kann Strom und Wärme erzeugen.",
+        "🍎 Ein Drittel aller Lebensmittel weltweit wird weggeworfen.",
+        "🌍 Kompostierung reduziert Methan-Emissionen aus Deponien erheblich.",
+    ],
+    "Restmüll": [
+        "🔥 Restmüll wird in Deutschland meist thermisch verwertet — also verbrannt.",
+        "📉 Je weniger Restmüll, desto besser für die Umweltbilanz.",
+        "🤔 Vieles im Restmüll könnte eigentlich recycelt werden — genau hinsehen!",
+        "🏭 Aus Restmüll-Verbrennung wird immerhin noch Energie gewonnen.",
+    ],
+}
+
 # ── Session State ──────────────────────────────────────
 if "zaehler" not in st.session_state:
     st.session_state.zaehler = {k: 0 for k in KATEGORIEN}
@@ -116,70 +180,6 @@ with col_logout:
         st.session_state.behaelter_id = ""
         st.session_state.letztes_ergebnis = None
         st.rerun()
-
-# ── 4 Behälter + Sonderabfall ──────────────────────────
-KATEGORIEN = {
-    "Plastik":      {"farbe": "#e65c00", "tonne": "🟡 Behälter 1 — Nur Plastik",          "bg": "#fff3e0"},
-    "Papier":       {"farbe": "#1565c0", "tonne": "🔵 Behälter 2 — Nur Papier",            "bg": "#e3f2fd"},
-    "Bio":          {"farbe": "#6d4c41", "tonne": "🟤 Behälter 3 — Nur Kompostierbares",   "bg": "#efebe9"},
-    "Restmüll":     {"farbe": "#37474f", "tonne": "⚫ Behälter 4 — Restmüll",              "bg": "#f5f5f5"},
-    "Sonderabfall": {"farbe": "#b71c1c", "tonne": "🔴 Sonderabfall — Nicht in den Müll!",  "bg": "#ffebee"},
-}
-
-MAPPING = {
-    "Plastik":      "Plastik",
-    "Papier":       "Papier",
-    "Karton":       "Restmüll",   # Karton mit Beschichtung → Restmüll
-    "Pappe":        "Papier",     # reine Pappe → Papier
-    "Bio":          "Bio",
-    "Biomüll":      "Bio",
-    "Biomuell":     "Bio",
-    "Metall":       "Restmüll",   # Metall/Dosen → Restmüll (kein Gelbe Tonne Behälter)
-    "Glas":         "Restmüll",
-    "Restmüll":     "Restmüll",
-    "Restmuell":    "Restmüll",
-    "Sonderabfall": "Sonderabfall",
-}
-
-SONDERABFALL_BEISPIELE = [
-    "Batterie", "Akku", "Elektronik", "Medikament", "Farbe", "Lösungsmittel",
-    "Chemikalie", "Lampe", "Leuchtstoffröhre", "Spraydose", "Öl", "Thermometer"
-]
-
-# ── Fakten ─────────────────────────────────────────────
-FAKTEN = {
-    "Plastik": [
-        "🌊 Jedes Jahr landen 8 Millionen Tonnen Plastik im Meer.",
-        "♻️ Aus 25 PET-Flaschen kann ein Fleece-Pullover hergestellt werden.",
-        "⏳ Eine Plastikflasche braucht bis zu 450 Jahre um sich zu zersetzen.",
-        "🛢️ Recyceltes Plastik spart bis zu 80% Energie gegenüber Neuproduktion.",
-        "⚠️ Nur reines Plastik gehört hier rein — gemischte Verpackungen in Restmüll.",
-    ],
-    "Sonderabfall": [
-        "🔋 Batterien enthalten Schwermetalle die das Grundwasser vergiften können.",
-        "💊 Medikamente niemals in den Ausguss — sie verschmutzen das Trinkwasser.",
-        "🖥️ Elektroschrott enthält wertvolle Rohstoffe wie Gold und Kupfer.",
-        "🎨 Farben und Lacke sind Sondermüll — zum Wertstoffhof bringen!",
-    ],
-    "Papier": [
-        "🌳 Aus 100 kg Altpapier können 85 kg neues Papier hergestellt werden.",
-        "💧 Recyclingpapier verbraucht 70% weniger Wasser als frisches Papier.",
-        "📦 Deutschland recycelt über 80% seines Papiers — Weltspitze!",
-        "🌲 Eine Tonne Recyclingpapier rettet ca. 17 Bäume.",
-    ],
-    "Bio": [
-        "🌱 Aus Biomüll entsteht wertvoller Kompost für die Landwirtschaft.",
-        "⚡ Biogas aus organischen Abfällen kann Strom und Wärme erzeugen.",
-        "🍎 Ein Drittel aller Lebensmittel weltweit wird weggeworfen.",
-        "🌍 Kompostierung reduziert Methan-Emissionen aus Deponien erheblich.",
-    ],
-    "Restmüll": [
-        "🔥 Restmüll wird in Deutschland meist thermisch verwertet — also verbrannt.",
-        "📉 Je weniger Restmüll, desto besser für die Umweltbilanz.",
-        "🤔 Vieles im Restmüll könnte eigentlich recycelt werden — genau hinsehen!",
-        "🏭 Aus Restmüll-Verbrennung wird immerhin noch Energie gewonnen.",
-    ],
-}
 
 # ── API Funktionen ─────────────────────────────────────
 def upload_bild(img_bytes):
