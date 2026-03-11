@@ -178,30 +178,65 @@ if "zaehler" not in st.session_state:
 if "letztes_ergebnis" not in st.session_state:
     st.session_state.letztes_ergebnis = None
 
-# ── Kamera Input ───────────────────────────────────────
-st.markdown("### 📸 Halte einen Gegenstand in die Kamera")
-foto = st.camera_input("Kamera", label_visibility="collapsed")
+# ── Modus-Schalter ─────────────────────────────────────
+if "modus" not in st.session_state:
+    st.session_state.modus = "foto"
 
-if foto:
-    with st.spinner("🔍 KI analysiert..."):
-        try:
-            img = Image.open(foto)
-            img.thumbnail((800, 800))
-            buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=50)
-            img_bytes = buf.getvalue()
-            url = upload_bild(img_bytes)
-            gegenstand, kategorie, komplex, schritte = analysiere_muell(url)
-            st.session_state.zaehler[kategorie] += 1
-            st.session_state.letztes_ergebnis = {
-                "gegenstand": gegenstand,
-                "kategorie": kategorie,
-                "komplex": komplex,
-                "schritte": schritte,
-                "fakt": random.choice(FAKTEN[kategorie]),
-            }
-        except Exception as e:
-            st.error(f"Fehler: {e}")
+col_l, col_r = st.columns(2)
+with col_l:
+    if st.button("📷 Foto-Modus", use_container_width=True,
+                 type="primary" if st.session_state.modus == "foto" else "secondary"):
+        st.session_state.modus = "foto"
+        st.rerun()
+with col_r:
+    if st.button("🎥 Live-Modus", use_container_width=True,
+                 type="primary" if st.session_state.modus == "live" else "secondary"):
+        st.session_state.modus = "live"
+        st.rerun()
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# ── FOTO-MODUS ─────────────────────────────────────────
+if st.session_state.modus == "foto":
+    st.markdown("### 📸 Halte einen Gegenstand in die Kamera")
+    foto = st.camera_input("Kamera", label_visibility="collapsed")
+
+    if foto:
+        with st.spinner("🔍 KI analysiert..."):
+            try:
+                img = Image.open(foto)
+                img.thumbnail((800, 800))
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG", quality=50)
+                img_bytes = buf.getvalue()
+                url = upload_bild(img_bytes)
+                gegenstand, kategorie, komplex, schritte = analysiere_muell(url)
+                st.session_state.zaehler[kategorie] += 1
+                st.session_state.letztes_ergebnis = {
+                    "gegenstand": gegenstand,
+                    "kategorie": kategorie,
+                    "komplex": komplex,
+                    "schritte": schritte,
+                    "fakt": random.choice(FAKTEN[kategorie]),
+                }
+            except Exception as e:
+                st.error(f"Fehler: {e}")
+
+# ── LIVE-MODUS ─────────────────────────────────────────
+else:
+    st.markdown("""
+    <div style="background:#f5f5f5;border-radius:16px;padding:32px;text-align:center;
+                border:2px dashed #ccc;margin-top:8px;">
+        <div style="font-size:2.5rem;margin-bottom:12px;">🚧</div>
+        <div style="font-size:1.1rem;font-weight:700;color:#555;margin-bottom:8px;">
+            Live-Modus — kommt bald
+        </div>
+        <div style="font-size:0.9rem;color:#888;">
+            Wird aktiviert sobald der Mülleimer fertig gebaut ist.<br>
+            Bitte nutze vorerst den 📷 Foto-Modus.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ── Ergebnis anzeigen ──────────────────────────────────
 if st.session_state.letztes_ergebnis:
