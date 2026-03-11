@@ -55,17 +55,34 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Kategorien ─────────────────────────────────────────
+# 4 Behälter im Mülleimer
+# Wertstoffe = Plastik + Metall zusammen (Gelbe Tonne)
 KATEGORIEN = {
-    "Plastik":  {"farbe": "#e65c00", "tonne": "🟡 Gelbe Tonne",    "bg": "#fff3e0"},
-    "Papier":   {"farbe": "#1565c0", "tonne": "🔵 Blaue Tonne",    "bg": "#e3f2fd"},
-    "Glas":     {"farbe": "#2e7d32", "tonne": "🟢 Glascontainer",  "bg": "#e8f5e9"},
-    "Metall":   {"farbe": "#546e7a", "tonne": "🟡 Gelbe Tonne",    "bg": "#eceff1"},
-    "Bio":      {"farbe": "#6d4c41", "tonne": "🟤 Braune Tonne",   "bg": "#efebe9"},
-    "Restmüll": {"farbe": "#37474f", "tonne": "⚫ Schwarze Tonne", "bg": "#f5f5f5"},
+    "Wertstoffe": {"farbe": "#e65c00", "tonne": "🟡 Behälter 1 — Wertstoffe",  "bg": "#fff3e0"},
+    "Papier":     {"farbe": "#1565c0", "tonne": "🔵 Behälter 2 — Papier",      "bg": "#e3f2fd"},
+    "Bio":        {"farbe": "#6d4c41", "tonne": "🟤 Behälter 3 — Bio",         "bg": "#efebe9"},
+    "Restmüll":   {"farbe": "#37474f", "tonne": "⚫ Behälter 4 — Restmüll",    "bg": "#f5f5f5"},
+}
+
+# Mapping: KI-Ergebnis → Behälter (Glas & Metall → Wertstoffe)
+MAPPING = {
+    "Wertstoffe": "Wertstoffe",
+    "Plastik":    "Wertstoffe",
+    "Metall":     "Wertstoffe",
+    "Glas":       "Wertstoffe",
+    "Papier":     "Papier",
+    "Bio":        "Bio",
+    "Restmüll":   "Restmüll",
 }
 
 # ── Fakten ─────────────────────────────────────────────
 FAKTEN = {
+    "Wertstoffe": [
+        "🔄 Plastik, Metall und Glas gehören alle in den Wertstoff-Behälter.",
+        "⚡ Recyceltes Aluminium spart 95% der Energie gegenüber Neuproduktion.",
+        "♾️ Glas kann unendlich oft recycelt werden ohne Qualitätsverlust.",
+        "🌊 Jedes Jahr landen 8 Millionen Tonnen Plastik im Meer.",
+    ],
     "Plastik": [
         "🌊 Jedes Jahr landen 8 Millionen Tonnen Plastik im Meer.",
         "♻️ Aus 25 PET-Flaschen kann ein Fleece-Pullover hergestellt werden.",
@@ -118,11 +135,16 @@ def analysiere_muell(img_url):
     prompt = """Analysiere das Bild. Antworte NUR in diesem exakten Format, keine extra Erklaerungen:
 
 GEGENSTAND: [was es ist, kurz auf Deutsch]
-KATEGORIE: [genau eines: Plastik, Papier, Glas, Metall, Bio, Restmuell]
-KOMPLEX: [JA wenn mehrere Materialien oder Trennung noetig, sonst NEIN]
-SCHRITT1: [erster Trennungsschritt auf Deutsch, nur wenn KOMPLEX=JA, sonst leer lassen]
-SCHRITT2: [zweiter Trennungsschritt, falls vorhanden, sonst leer lassen]
-SCHRITT3: [dritter Trennungsschritt, falls vorhanden, sonst leer lassen]"""
+MATERIAL: [das genaue Material: Plastik, Papier, Glas, Metall, Bio oder Restmuell]
+BEHAELTER: [wohin es gehoert — NUR eines dieser 4: Wertstoffe, Papier, Bio, Restmuell]
+  Regel: Plastik + Metall + Glas = Wertstoffe
+  Regel: Papier + Karton = Papier
+  Regel: Essensreste + Pflanzen = Bio
+  Regel: alles andere = Restmuell
+KOMPLEX: [JA wenn Trennung noetig z.B. Deckel ab, Inhalt leeren — sonst NEIN]
+SCHRITT1: [Trennungsschritt 1, nur wenn KOMPLEX=JA, sonst leer lassen]
+SCHRITT2: [Trennungsschritt 2, falls vorhanden, sonst leer lassen]
+SCHRITT3: [Trennungsschritt 3, falls vorhanden, sonst leer lassen]"""
 
     r = client.chat.completions.create(
         messages=[{
