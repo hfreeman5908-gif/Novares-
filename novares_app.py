@@ -1,14 +1,11 @@
 import streamlit as st
 import base64
+import requests
 from groq import Groq
 from PIL import Image
 import io
 import random
 import qrcode
-import serial
-import serial.tools.list_ports
-
-
 
 # ── Seiten-Config ──────────────────────────────────────
 st.set_page_config(page_title="Novares | Smart Recycling", page_icon="♻", layout="centered")
@@ -115,31 +112,6 @@ for key, val in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = val
 
-# ── ESP32 Bluetooth ────────────────────────────────────
-def verbinde_esp32():
-    for p in serial.tools.list_ports.comports():
-        if "Novares" in p.description or "ESP32" in p.description or "SLAB" in p.description:
-            try:
-                return serial.Serial(p.device, 115200, timeout=2)
-            except:
-                pass
-    return None
-
-def sende_an_esp32(kategorie):
-    bt = st.session_state.get("bt")
-    if bt and bt.is_open:
-        try:
-            bt.write((kategorie + "\n").encode())
-            return True
-        except:
-            st.session_state.bt = verbinde_esp32()
-            return False
-    return False
-
-if "bt" not in st.session_state:
-    st.session_state.bt = verbinde_esp32()
-
-
 # ── Login Screen ───────────────────────────────────────
 if not st.session_state.eingeloggt:
     st.markdown("""
@@ -216,8 +188,15 @@ with col_logout:
         st.rerun()
 
 # ── API ────────────────────────────────────────────────
-def analysiere_muell(img_bytes):
-    b64    = base64.b64encode(img_bytes).decode("utf-8")
+def upload_bild(img_bytes):
+    b64 = base64.b64encode(img_bytes).decode("utf-8")
+    r   = requests.post("https://api.imgbb.com/1/upload", data={"key": IMGBB_KEY, "image": b64})
+    ans = r.json()
+    if "data" not in ans:
+        st.error("imgbb Fehler: " + str(ans)); st.stop()
+    return ans["data"]["url"]
+
+def analysiere_muell(img_url):
     prompt = """Du bist ein praeziser Recycling-Experte. Analysiere das Bild.
 
 4 Behaelter + Sonderabfall:
@@ -240,7 +219,7 @@ SCHRITT3: [weiterer Schritt, sonst leer]"""
     r    = client.chat.completions.create(
         messages=[{"role": "user", "content": [
             {"type": "text",      "text": prompt},
-            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
+            {"type": "image_url", "image_url": {"url": img_url}}
         ]}],
         model="meta-llama/llama-4-scout-17b-16e-instruct",
         max_completion_tokens=250,
@@ -300,12 +279,10 @@ if st.session_state.modus == "foto":
                 img.thumbnail((800, 800))
                 buf = io.BytesIO()
                 img.save(buf, format="JPEG", quality=50)
-                gegenstand, behaelter, warnung, komplex, schritte = analysiere_muell(buf.getvalue())
+                url = upload_bild(buf.getvalue())
+                gegenstand, behaelter, warnung, komplex, schritte = analysiere_muell(url)
                 co2_g, cent = berechne_impact(behaelter)
                 st.session_state.zaehler[behaelter] += 1
-                # ── ESP32 Motor ansteuern ──────────────
-                if behaelter != "Sonderabfall":
-                    sende_an_esp32(behaelter)
                 st.session_state.gesamt_co2   += co2_g
                 st.session_state.gesamt_cent  += cent
                 st.session_state.letztes_ergebnis = {
