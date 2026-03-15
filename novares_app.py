@@ -6,6 +6,10 @@ from PIL import Image
 import io
 import random
 import qrcode
+import serial
+import serial.tools.list_ports
+
+
 
 # ── Seiten-Config ──────────────────────────────────────
 st.set_page_config(page_title="Novares | Smart Recycling", page_icon="♻", layout="centered")
@@ -15,7 +19,7 @@ KATEGORIEN = {
     "Plastik":      {"farbe": "#e65c00", "tonne": "Behaelter 1 - Nur Plastik",         "bg": "#fff3e0"},
     "Papier":       {"farbe": "#1565c0", "tonne": "Behaelter 2 - Nur Papier",           "bg": "#e3f2fd"},
     "Bio":          {"farbe": "#6d4c41", "tonne": "Behaelter 3 - Nur Kompostierbares",  "bg": "#efebe9"},
-    "Restmuell":    {"farbe": "#37474f", "tonne": "Behaelter 4 - Restmuell",            "bg": "#f5f5f5"},
+    "Restmuell":    {"farbe": "#37474f", "tonne": "Behaeltxaer 4 - Restmuell",            "bg": "#f5f5f5"},
     "Sonderabfall": {"farbe": "#b71c1c", "tonne": "Sonderabfall - Nicht in den Muell!", "bg": "#ffebee"},
 }
 
@@ -111,6 +115,31 @@ defaults = {
 for key, val in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = val
+
+# ── ESP32 Bluetooth ────────────────────────────────────
+def verbinde_esp32():
+    for p in serial.tools.list_ports.comports():
+        if "Novares" in p.description or "ESP32" in p.description or "SLAB" in p.description:
+            try:
+                return serial.Serial(p.device, 115200, timeout=2)
+            except:
+                pass
+    return None
+
+def sende_an_esp32(kategorie):
+    bt = st.session_state.get("bt")
+    if bt and bt.is_open:
+        try:
+            bt.write((kategorie + "\n").encode())
+            return True
+        except:
+            st.session_state.bt = verbinde_esp32()
+            return False
+    return False
+
+if "bt" not in st.session_state:
+    st.session_state.bt = verbinde_esp32()
+
 
 # ── Login Screen ───────────────────────────────────────
 if not st.session_state.eingeloggt:
@@ -283,6 +312,9 @@ if st.session_state.modus == "foto":
                 gegenstand, behaelter, warnung, komplex, schritte = analysiere_muell(url)
                 co2_g, cent = berechne_impact(behaelter)
                 st.session_state.zaehler[behaelter] += 1
+                # ── ESP32 Motor ansteuern ──────────────
+                if behaelter != "Sonderabfall":
+                    sende_an_esp32(behaelter)
                 st.session_state.gesamt_co2   += co2_g
                 st.session_state.gesamt_cent  += cent
                 st.session_state.letztes_ergebnis = {
